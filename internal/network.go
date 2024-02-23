@@ -1,5 +1,6 @@
-package utils
+package internal
 
+// 网络通信的基础设施
 import (
 	"github.com/gorilla/websocket"
 	"net/http"
