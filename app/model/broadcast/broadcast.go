@@ -1,11 +1,40 @@
 package broadcast
 
 import (
+	"github.com/gorilla/websocket"
+	"net/http"
 	"sync"
 	"time"
 )
 
-// 定义GetIn接口的请求消息结构
+// 定义在线用户列表和互斥锁
+var OnlineUsers []User
+var OnlineUsersMutex sync.Mutex
+
+// 定义超时时间 30秒
+const HeartbeatTimeout = 30 * time.Second
+
+// LocalClient 记录本地客户端的ws
+var LocalClient *websocket.Conn
+
+//// MultiBroadcastConn 记录多播连接
+//var MultiBroadcastConn *net.UDPConn
+
+// LocalBroadcastMsg 记录本地广播消息
+var LocalBroadcastMsg BroadcastMsg
+
+// StartHeartbeat 用于启动心跳
+var StartHeartbeat = make(chan bool)
+
+// Upgrader 定义升级器
+var Upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024, // 读取缓冲区大小
+	WriteBufferSize: 1024, // 写入缓冲区大小
+	// 解决跨域问题
+	CheckOrigin: func(r *http.Request) bool {
+		return true // 允许所有来源访问
+	},
+}
 
 // getIn接口，前端给后端的消息，也是后端广播的消息
 type BroadcastMsg struct {
@@ -24,15 +53,7 @@ type User struct {
 	LastHeartbeat time.Time `json:"lastHeartbeat"`
 }
 
-//type MsgBack struct {
-//	Code    string `json:"code"`
-//	Message string `json:"message"`
-//	Users   []User `json:"data"`
-//}
-
-// 设定已有在线用户列表和互斥锁，用于线程安全地更新和访问用户列表
-var OnlineUsers []User
-var OnlineUsersMutex sync.Mutex
-
-// 超时时间为30秒
-const HeartbeatTimeout = 30 * time.Second
+type LeaveRequest struct {
+	Leave   bool   `json:"leave"`
+	Message string `json:"message"`
+}

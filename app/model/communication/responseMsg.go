@@ -1,6 +1,6 @@
 package communication
 
-// 定义通信返回数据结构
+// 定义responseMsg数据结构
 
 type ContentRes struct {
 	Status  int8   `json:"status"`

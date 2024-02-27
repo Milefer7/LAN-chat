@@ -1,8 +1,8 @@
 package communication
 
-import model "github.com/Milefer7/LAN-chat/app/model/broadcast"
+import "github.com/Milefer7/LAN-chat/app/model/broadcast"
 
-// 定义通信接收数据结构
+// 定义requestMsg数据结构
 
 type Data struct {
 	Type      string `json:"type"`
@@ -17,7 +17,7 @@ type ContentReq struct {
 }
 
 type OnlineUsers struct {
-	OnlineUsers []model.User `json:"OnlineUsers"`
+	OnlineUsers []broadcast.User `json:"OnlineUsers"`
 }
 
 type RequestMessage struct {
