@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"github.com/Milefer7/LAN-chat/app/model/broadcast"
 	"github.com/Milefer7/LAN-chat/app/model/communication"
-	"time"
-
 	"github.com/gorilla/websocket"
 	"log"
 )
@@ -38,7 +36,7 @@ func HandleGet(ws *websocket.Conn, ctx context.Context) {
 			}
 			// 处理消息
 			// 将resMsg发送给qt客户端
-			SendMsgToClient(message, ws)
+			SendMsgToClient(message, ws, reqMsg) //reqMsg是message转换后的结构体
 			// 如果成功 将响应消息返回给发送者
 			SendSuccessMsg(ws, reqMsg)
 		}
@@ -98,46 +96,45 @@ func SendFailMsg(ws *websocket.Conn, reqMsg communication.RequestMessage) {
 }
 
 // SendMsgToClient 给本地客户端发送消息, 传入的ws是局域网用户的ws
-func SendMsgToClient(message []byte, ws *websocket.Conn) {
+func SendMsgToClient(message []byte, ws *websocket.Conn, reqMsg communication.RequestMessage) {
 	// 获取客户端ws
-	LocalWs := LocalClient
+	LocalWs := broadcast.LocalClient
 	// 发送消息
 	err := LocalWs.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
 		log.Println("Error sending message:", err)
-		SendFailMsg(ws, communication.RequestMessage{})
+		SendFailMsg(ws, reqMsg)
 	}
 }
 
 // SendOnlineUsers 返回在线用户
-func SendOnlineUsers(ws *websocket.Conn, ctx context.Context) {
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			var requestMsg = communication.RequestMessage{
-				Data:    communication.Data{},
-				Content: []communication.ContentReq{},
-				OnlineUsers: communication.OnlineUsers{
-					OnlineUsers: broadcast.OnlineUsers,
-				},
-			}
-			// 将OnlineUsers转为json格式
-			users, err := json.Marshal(requestMsg)
-			if err != nil {
-				log.Println("Marshal error:", err)
-				continue
-			}
-			// 发送在线用户
-			if err := ws.WriteMessage(websocket.TextMessage, users); err != nil {
-				log.Println("Write error:", err)
-			}
-		case <-ctx.Done():
-			log.Println("停止发送在线用户")
-			// 停止
-			return
-		}
-	}
-}
+//func SendOnlineUsers(ws *websocket.Conn, ctx context.Context) {
+//	ticker := time.NewTicker(3 * time.Second)
+//	defer ticker.Stop()
+//
+//	for {
+//		select {
+//		case <-ticker.C:
+//			var requestMsg = communication.RequestMessage{
+//				Data:    communication.Data{},
+//				Content: []communication.ContentReq{},
+//				OnlineUsers: communication.OnlineUsers{
+//					OnlineUsers: broadcast.OnlineUsers,
+//				},
+//			}
+//			// 将OnlineUsers转为json格式
+//			users, err := json.Marshal(requestMsg)
+//			if err != nil {
+//				log.Println("Marshal error:", err)
+//				continue
+//			}
+//			// 发送在线用户
+//			if err := ws.WriteMessage(websocket.TextMessage, users); err != nil {
+//				log.Println("Write error:", err)
+//			}
+//		case <-ctx.Done():
+//			log.Println("停止发送在线用户")
+//			return
+//		}
+//	}
+//}
