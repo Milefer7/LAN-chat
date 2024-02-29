@@ -69,13 +69,6 @@ func ListenForBroadcastMessages(ctx context.Context) {
 	}
 	defer conn.Close()
 
-	//// 加入多播组
-	//p := ipv4.NewPacketConn(conn)
-	//if err := p.JoinGroup(nil, addr); err != nil {
-	//	fmt.Printf("Error joining multicast group: %v\n", err)
-	//	return
-	//}
-
 	// 设置读取缓冲区大小
 	if err := conn.SetReadBuffer(1024); err != nil {
 		log.Fatal(err)
@@ -88,7 +81,7 @@ func ListenForBroadcastMessages(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("接收到取消信号，停止监听UDP广播——发现在线用户")
+			log.Println("接收到取消信号，停止监听UDP广播")
 			return
 		default:
 			buffer := make([]byte, 1024)
@@ -98,21 +91,15 @@ func ListenForBroadcastMessages(ctx context.Context) {
 				return
 			}
 			n, src, err := conn.ReadFromUDP(buffer)
-			//if src == nil {
-			//	log.Println("源地址为空，跳过此次循环")
-			//	continue
-			//}
 			if err != nil {
 				if os.IsTimeout(err) {
 					// 忽略超时错误，继续监听
+					// log.Println("*******************监听循环次数分割线*************************")
 					continue
 				}
 				log.Println("读取UDP消息错误：", err)
 				continue
 			}
-			// 打印接收到的UDP消息
-			log.Println("接收到UDP消息：", string(buffer[:n]))
-			// 解析UDP消息
 			var msg broadcast.BroadcastMsg
 			if err := json.Unmarshal(buffer[:n], &msg); err != nil {
 				log.Println("解析UDP消息错误：", err)
@@ -188,24 +175,30 @@ func RemoveStaleUsers(ctx context.Context) {
 }
 
 // 发送心跳消息
-func SendHeartbeat(data broadcast.BroadcastMsg, ctx context.Context) {
-	// log.Println("SendHeartbeat开启")
+func SendHeartbeat(ctx context.Context) {
+	log.Println("接收到信号，开启发送心跳")
 	// 创建udp连接
 	conn, err := net.DialUDP("udp", nil, &net.UDPAddr{
 		IP:   net.IPv4(224, 0, 0, 167),
-		Port: 52017,
+		Port: 5353,
 	})
 	if err != nil {
 		log.Printf("udp连接错误：%v", err)
 		return
 	}
+	defer func(conn *net.UDPConn) {
+		err := conn.Close()
+		if err != nil {
+			fmt.Println("关闭udp连接错误:", err)
+		}
+	}(conn)
 	ticker := time.NewTicker(25 * time.Second) // 每25秒发送一次心跳
-	data.Type = "heartbeat"
+	broadcast.LocalBroadcastMsg.Type = "heartbeat"
 	for {
 		select {
 		case <-ticker.C:
 			// 将data转化为json格式
-			msgBytes, err := json.Marshal(data)
+			msgBytes, err := json.Marshal(broadcast.LocalBroadcastMsg)
 			// log.Println("data:", data)
 			if err != nil {
 				log.Printf("转化心跳消息为msgBytes错误：%v", err)
@@ -216,7 +209,8 @@ func SendHeartbeat(data broadcast.BroadcastMsg, ctx context.Context) {
 				log.Printf("发送心跳错误：%v", err)
 				continue
 			}
-			// log.Println("发送心跳消息 time:", time.Now())
+			log.Println("已发送心跳消息：", broadcast.LocalBroadcastMsg)
+			log.Println("在线用户：", broadcast.OnlineUsers)
 		case <-ctx.Done():
 			log.Println("停止发送心跳消息")
 			// 结束循环

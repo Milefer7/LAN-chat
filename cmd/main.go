@@ -18,14 +18,16 @@ func main() {
 	go internal.ListenForBroadcastMessages(ctx)
 	// 清除超时用户
 	go internal.RemoveStaleUsers(ctx)
-	//
+	// 发送心跳
 	go func() {
-		log.Println("StartHeartbeat开启")
+		log.Printf("等待信号发送心跳")
+		// 每25秒发一次心跳
+		// RemoveStaleUsers是每5秒清除一次超时用户
+		// 超时时间为30秒
 		for {
 			select {
 			case <-broadcast.StartHeartbeat:
-				log.Println("StartHeartbeat接收到消息")
-				go internal.SendHeartbeat(broadcast.LocalBroadcastMsg, ctx)
+				go internal.SendHeartbeat(ctx)
 			}
 		}
 	}()
@@ -35,38 +37,3 @@ func main() {
 	// 启动服务端
 	controller.StartServer(r)
 }
-
-//
-//const BUF_SIZE int = 8192
-
-//func main() {
-//	log.Println("我是接收端")
-//	// WLAN
-//	iface, err := net.InterfaceByName("WLAN") // 举例使用"eth0"，实际上根据你的网络接口来
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	// group addr
-//	gaddr, _ := net.ResolveUDPAddr("udp", "224.1.1.2:9190")
-//	listener, err := net.ListenMulticastUDP("udp", iface, gaddr)
-//	if err != nil {
-//		checkError(err)
-//	}
-//
-//	// listener.SetReadBuffer(maxDatagramSize)
-//
-//	message := make([]byte, BUF_SIZE)
-//	log.Println(1)
-//	for {
-//		log.Println(2)
-//		n, src, _ := listener.ReadFromUDP(message)
-//		log.Println(src, ": ", string(message[:n]))
-//	}
-//}
-//
-//func checkError(err error) {
-//	if err != nil {
-//		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-//		os.Exit(1)
-//	}
-//}
