@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>history.txt</file>
-        <file>identity.txt</file>
-    </qresource>
-</RCC>
