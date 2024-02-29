@@ -15,8 +15,8 @@ import (
 
 // StartServer 开启服务器
 func StartServer(r *gin.Engine) {
-	log.Println(fmt.Sprintf("Server is running at %s", "localhost:80"))
-	if err := r.Run(":80"); err != nil {
+	log.Println(fmt.Sprintf("Server is running at %s", "localhost:8080"))
+	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Failed to run server:", err)
 	}
 }

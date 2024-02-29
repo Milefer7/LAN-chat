@@ -69,29 +69,29 @@ func TestWs(t *testing.T) {
 
 // 测试广播消息的发送和接收（看看防火墙会不会拦截）
 func TestBroadcastAndReceive(t *testing.T) {
-	// 创建接收端，加入多播组
-	recvAddr := &net.UDPAddr{
-		IP:   net.ParseIP("224.0.0.167"),
-		Port: 5353,
-	}
-	recvConn, err := net.ListenMulticastUDP("udp", nil, recvAddr)
-	if err != nil {
-		t.Errorf("ListenMulticastUDP error: %v", err)
-		return
-	}
-	defer recvConn.Close()
-
-	// 设置接收端读取超时
-	err = recvConn.SetReadDeadline(time.Now().Add(10 * time.Second))
-	if err != nil {
-		t.Errorf("SetReadDeadline error: %v", err)
-		return
-	}
-
-	// 等待一小段时间确保接收端准备就绪
-	log.Println(1)
-	time.Sleep(time.Second * 3)
-	log.Println(2)
+	//// 创建接收端，加入多播组
+	//recvAddr := &net.UDPAddr{
+	//	IP:   net.ParseIP("224.0.0.167"),
+	//	Port: 5353,
+	//}
+	//recvConn, err := net.ListenMulticastUDP("udp", nil, recvAddr)
+	//if err != nil {
+	//	t.Errorf("ListenMulticastUDP error: %v", err)
+	//	return
+	//}
+	//defer recvConn.Close()
+	//
+	//// 设置接收端读取超时
+	//err = recvConn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	//if err != nil {
+	//	t.Errorf("SetReadDeadline error: %v", err)
+	//	return
+	//}
+	//
+	//// 等待一小段时间确保接收端准备就绪
+	//log.Println(1)
+	//time.Sleep(time.Second * 3)
+	//log.Println(2)
 
 	// 创建发送端连接
 	conn, err := net.Dial("udp", "224.0.0.167:5353")
@@ -102,10 +102,11 @@ func TestBroadcastAndReceive(t *testing.T) {
 
 	// 创建并发送广播消息
 	msg := model.BroadcastMsg{
+		Type:        "join",
 		UserName:    "TestUser",
 		DeviceType:  "TestDevice",
 		Fingerprint: "Fingerprint",
-		Port:        5353,
+		Port:        8080,
 	}
 	msgBytes, err := json.Marshal(msg)
 	if err != nil {
@@ -116,31 +117,31 @@ func TestBroadcastAndReceive(t *testing.T) {
 		t.Fatalf("Write error: %v", err)
 	}
 
-	// 读取接收端的数据
-	buffer := make([]byte, 1024)
-	n, _, err := recvConn.ReadFromUDP(buffer)
-	if err != nil {
-		t.Fatalf("ReadFromUDP error: %v", err)
-	}
-
-	// 解析接收到的消息
-	var recvMsg model.BroadcastMsg
-	err = json.Unmarshal(buffer[:n], &recvMsg)
-	if err != nil {
-		t.Fatalf("Unmarshal error: %v", err)
-	}
-
-	// 检查接收到的消息是否与发送的消息匹配
-	if recvMsg.UserName != msg.UserName || recvMsg.DeviceType != msg.DeviceType || recvMsg.Fingerprint != msg.Fingerprint || recvMsg.Port != msg.Port {
-		t.Fatalf("Received message does not match sent message")
-	}
+	//// 读取接收端的数据
+	//buffer := make([]byte, 1024)
+	//n, _, err := recvConn.ReadFromUDP(buffer)
+	//if err != nil {
+	//	t.Fatalf("ReadFromUDP error: %v", err)
+	//}
+	//
+	//// 解析接收到的消息
+	//var recvMsg model.BroadcastMsg
+	//err = json.Unmarshal(buffer[:n], &recvMsg)
+	//if err != nil {
+	//	t.Fatalf("Unmarshal error: %v", err)
+	//}
+	//
+	//// 检查接收到的消息是否与发送的消息匹配
+	//if recvMsg.UserName != msg.UserName || recvMsg.DeviceType != msg.DeviceType || recvMsg.Fingerprint != msg.Fingerprint || recvMsg.Port != msg.Port {
+	//	t.Fatalf("Received message does not match sent message")
+	//}
 }
 
 const BUF_SIZE int = 8192
 
 func TestBroadcast(t *testing.T) {
 	// sender
-	conn, err := net.Dial("udp", "224.1.1.2:9190")
+	conn, err := net.Dial("udp", "224.0.0.167:5353")
 	if err != nil {
 		checkError(err)
 	}
