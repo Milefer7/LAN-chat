@@ -1,11 +1,17 @@
 package controller
 
-import "C"
+// import "C"
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/Milefer7/LAN-chat/app/model/broadcast"
 	"github.com/Milefer7/LAN-chat/internal"
@@ -45,7 +51,7 @@ func Ws(c *gin.Context, ctx context.Context) {
 		broadcast.LocalClient = ws
 		log.Println("本地客户端已连接")
 	}
-
+	log.Println("客户端连接成功: ", remoteAddr)
 	// 无限循环处理客户端发来的信息
 	internal.HandleGet(ws, ctx)
 }
@@ -103,5 +109,101 @@ func GetOnlineUsers(c *gin.Context) {
 		"code":        1,
 		"message":     "获取在线用户成功",
 		"onlineUsers": broadcast.OnlineUsers,
+	})
+}
+
+func HttpSend(c *gin.Context) {
+	// 结构体转转为json格式
+	data, err := json.Marshal(broadcast.LocalBroadcastMsg)
+	if err != nil {
+		log.Println("结构体转json格式错误:", err)
+		return
+	}
+
+	// 获取本机wlan的IPv4地址
+	ip, err := internal.GetOutBoundIP()
+	if err != nil {
+		fmt.Println(err)
+	}
+	// fmt.Println("本机ip是：", ip)
+	// 获取本机wlan的子网
+	parts := strings.Split(ip, ".")
+	baseIP := strings.Join(parts[:3], ".") + "."
+	// fmt.Println(baseIP)
+
+	var wg sync.WaitGroup
+
+	// 定义一个切片来存储发现的设备IP地址
+	var discoveredIPs []string
+
+	// 遍历整个IP范围
+	for i := 0; i <= 255; i++ {
+		ip := fmt.Sprintf("%s%d", baseIP, i)
+		wg.Add(1)
+		go func(ip string) {
+			defer wg.Done()
+			url := fmt.Sprintf("http://%s:8080/httpReceive", ip)
+
+			// 发送POST请求
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				// fmt.Printf("Failed to send request to %s: %v\n", ip, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			// 如果连接成功，写入切片
+			if resp.StatusCode == http.StatusOK {
+				discoveredIPs = append(discoveredIPs, ip)
+			}
+		}(ip)
+	}
+
+	wg.Wait()
+
+	// 打印发现的IP地址
+	fmt.Println("Discovered IP addresses:")
+	for _, ip := range discoveredIPs {
+		fmt.Println(ip)
+	}
+	c.JSON(200, gin.H{
+		"code":    1,
+		"message": "发送http接口成功",
+	})
+}
+
+func HttpReceive(c *gin.Context) {
+	// 接收json
+	var msg broadcast.BroadcastMsg
+	if err := c.BindJSON(&msg); err != nil {
+		log.Println("接收http接口 BindJSON error:", err)
+		return
+	}
+	// 加锁，保证同一个时间只有应该线程可以访问
+	broadcast.OnlineUsersMutex.Lock()
+	defer broadcast.OnlineUsersMutex.Unlock()
+
+	// log.Println("Host:", c.ClientIP())
+	// 遍历在线用户，看是否为新用户
+	for i, user := range broadcast.OnlineUsers {
+		if user.Fingerprint == msg.Fingerprint {
+			broadcast.OnlineUsers[i].LastHeartbeat = time.Now() // 设置最后一次心跳时间
+			c.JSON(200, gin.H{
+				"code":    1,
+				"message": "接收http接口成功",
+			})
+			return
+		}
+	}
+	// 如果是新用户，加入在线用户列表
+	broadcast.OnlineUsers = append(broadcast.OnlineUsers, broadcast.User{
+		Host:          c.ClientIP(),
+		UserName:      msg.UserName,
+		Fingerprint:   msg.Fingerprint,
+		LastHeartbeat: time.Now(), // 设置最后一次心跳时间
+	})
+	c.JSON(200, gin.H{
+		"code":    1,
+		"message": "接收http接口成功",
 	})
 }

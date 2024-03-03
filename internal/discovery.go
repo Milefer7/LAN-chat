@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Milefer7/LAN-chat/app/model/broadcast"
@@ -62,8 +63,11 @@ func ListenForBroadcastMessages(ctx context.Context) {
 		Port: 5353,
 	}
 
+	// 设置网口
+	iface, err := net.InterfaceByName("WLAN")
+
 	// 创建一个多播UDP连接并监听
-	conn, err := net.ListenMulticastUDP("udp", nil, multicastAddr)
+	conn, err := net.ListenMulticastUDP("udp", iface, multicastAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -123,12 +127,20 @@ func creatOnlineUsers(msg broadcast.BroadcastMsg, src *net.UDPAddr) {
 	broadcast.OnlineUsersMutex.Lock()
 	defer broadcast.OnlineUsersMutex.Unlock()
 
+	// 判断指纹是否已经在在线用户列表中
+	for i, user := range broadcast.OnlineUsers {
+		if user.Fingerprint == msg.Fingerprint {
+			broadcast.OnlineUsers[i].LastHeartbeat = time.Now() // 设置最后一次心跳时间
+			return
+		}
+	}
 	broadcast.OnlineUsers = append(broadcast.OnlineUsers, broadcast.User{
 		Host:          src.IP.String(),
 		UserName:      msg.UserName,
 		Fingerprint:   msg.Fingerprint,
 		LastHeartbeat: time.Now(), // 设置最后一次心跳时间
 	})
+	return
 }
 
 // 更新心跳消息处理逻辑
@@ -211,10 +223,24 @@ func SendHeartbeat(ctx context.Context) {
 			}
 			log.Println("已发送心跳消息：", broadcast.LocalBroadcastMsg)
 			log.Println("在线用户：", broadcast.OnlineUsers)
+
 		case <-ctx.Done():
 			log.Println("停止发送心跳消息")
 			// 结束循环
 			return
 		}
 	}
+}
+
+func GetOutBoundIP() (ip string, err error) {
+	// 使用udp发起网络连接, 这样不需要关注连接是否可通, 随便填一个即可
+	conn, err := net.Dial("udp", "8.8.8.8:53")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	// fmt.Println(localAddr.String())
+	ip = strings.Split(localAddr.String(), ":")[0]
+	return
 }
