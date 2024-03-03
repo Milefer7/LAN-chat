@@ -17,7 +17,7 @@ func main() {
 	// 开启设备发现 获取在线用户
 	go internal.ListenForBroadcastMessages(ctx)
 	// 清除超时用户
-	go internal.RemoveStaleUsers(ctx)
+	// go internal.RemoveStaleUsers(ctx)
 	// 发送心跳
 	go func() {
 		log.Printf("等待信号发送心跳")

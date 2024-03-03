@@ -16,6 +16,12 @@ func InitRouter(e *gin.Engine, cancel context.CancelFunc, ctx context.Context) {
 	e.POST("/broadcast", func(c *gin.Context) {
 		controller.Broadcast(c)
 	})
+
+	// 发送http接口
+	e.POST("/httpSend", controller.HttpSend)
+	// 接收http接口
+	e.POST("/httpReceive", controller.HttpReceive)
+
 	// 获取在线用户接口
 	e.GET("/getOnlineUsers", controller.GetOnlineUsers)
 	// 离开接口
